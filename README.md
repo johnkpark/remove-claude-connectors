@@ -1,14 +1,31 @@
 # Claude Connector Remover
 
-Unpacked Chrome extension for removing remote MCP connectors from Claude's connectors page.
+Claude Connector Remover is an unpacked Chrome extension for deleting remote MCP connectors from Claude's connectors page.
 
-Claude currently exposes a working delete endpoint, but the web UI does not provide a delete action for every account. This extension observes Claude's own connector bootstrap requests, extracts the organization UUID and connector server UUIDs, and calls:
+## Why this exists
+
+Claude can keep remote MCP connectors attached to your account even when the web UI does not expose a delete button for them. The backend delete endpoint still works, but using it manually is awkward: you have to open DevTools, find your organization UUID, inspect the MCP bootstrap event stream, copy the correct connector server UUID, and then run a `fetch()` call by hand.
+
+This extension turns that manual cleanup flow into a small panel on `https://claude.ai/customize/connectors`. It finds the UUIDs for you, shows the detected connectors, and sends the same authenticated delete request after you confirm the connector you want to remove.
+
+## How it works
+
+![Claude Connector Remover demo](./remove_claude_connectors.gif)
+
+The extension only runs on Claude's connectors page. A content script injects a page-context agent so the extension can observe Claude's own same-origin network activity while using your already signed-in browser session.
+
+The agent watches for Claude bootstrap requests, including:
+
+- `edge-api/bootstrap/{ORG_UUID}/app_start`, which reveals the organization UUID
+- `mcp/v2/bootstrap`, an event stream that includes remote connector records with connector names and server UUIDs
+
+When it detects connector records, the extension renders them in the floating **Connector Remover** panel. Pressing **Delete** asks for confirmation and then calls Claude's delete endpoint:
 
 ```txt
 DELETE /api/organizations/{ORG_UUID}/mcp/remote_servers/{SERVER_UUID}
 ```
 
-using your existing signed-in `claude.ai` browser session.
+The request is made from Claude's page context with `credentials: include`, so it uses your normal `claude.ai` authentication cookies. The extension does not need you to paste UUIDs, run console snippets, or create custom DevTools requests.
 
 ## Install
 
